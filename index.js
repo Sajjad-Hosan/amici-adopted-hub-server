@@ -190,14 +190,17 @@ const run = async () => {
     // all pets
     app.post("/pets", async (req, res) => {
       const page = parseInt(req.query.page);
-      console.log(page * 10)
+      const mode = req.query.mode;
       const result = await petsCollection
         .find()
         .skip(page * 10)
         .limit(10)
         .toArray();
-      // const filter = result.filter((i) => i.adopted !== true);
-      res.send(result);
+      if (mode === "admin") {
+        return res.send(result);
+      }
+      const filter = result.filter((i) => i.adopted !== true);
+      res.send(filter);
     });
     app.get("/pets_category", async (req, res) => {
       const category = req.query?.category;
@@ -293,10 +296,28 @@ const run = async () => {
       res.send({ result, info });
     });
     // user campaign realted api
-    app.get("/donation_campaign", async (req, res) => {
+    app.get("/donations_count", async (req, res) => {
+      const result = await campaignCollection.estimatedDocumentCount();
+      res.send({ count: result });
+    });
+    app.post("/donation_campaign", async (req, res) => {
+      const mode = req.query.mode;
+      const page = parseInt(req.query.page);
       const email = req.query.email;
       const filter = { userEmail: email };
-      const result = await campaignCollection.find(filter).toArray();
+      if (mode === "admin") {
+        const result = await campaignCollection
+          .find()
+          .skip(page * 10)
+          .limit(10)
+          .toArray();
+        return res.send(result);
+      }
+      const result = await campaignCollection
+        .find(filter)
+        .skip(page * 10)
+        .limit(10)
+        .toArray();
       res.send(result);
     });
     app.get("/donation_info/:id", async (req, res) => {
