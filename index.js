@@ -60,6 +60,7 @@ const client = new MongoClient(uri, {
 
 const run = async () => {
   try {
+    const userPictures = client.db("petsHub").collection("pictures");
     const usersCollection = client.db("petsHub").collection("users");
     const petsCollection = client.db("petsHub").collection("pets");
     const donationCollection = client.db("petsHub").collection("donations");
@@ -67,6 +68,17 @@ const run = async () => {
     const adoptedCollection = client.db("petsHub").collection("adopts");
     const reviewCollection = client.db("petsHub").collection("reviews");
 
+    // user block realted api
+    app.get("/user_check", async (req, res) => {
+      const email = req.query.email;
+      const filter = { email: email };
+      const exist = await usersCollection.findOne(filter);
+      if (exist?.block) {
+        return res.send({ block: true, message: "you have block by user" });
+      } else {
+        return res.send({ block: false, message: "not block" });
+      }
+    });
     // jwt related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -81,7 +93,7 @@ const run = async () => {
       const user = req.body;
       res
         .clearCookie("token", { ...cookieOptions, maxAge: 0 })
-        .send({ message: "logut by server", success: true });
+        .send({ message: "logout by server", success: true });
     });
     // stripe related api
     app.post("/payment_intent", async (req, res) => {
@@ -99,6 +111,77 @@ const run = async () => {
       });
     });
     // ---------------------------------------------------------------------------------
+    // isAdmin related api
+    app.get("/user_status", async (req, res) => {
+      const email = req.query.email;
+      const filter = { email: email };
+      const result = await usersCollection.findOne(filter);
+      res.send({ isAdmin: result?.admin });
+      // console.log(result?.admin);
+    });
+    // user images related api
+    app.get("/user_images", async (req, res) => {
+      const result = await userPictures.find().toArray();
+      res.send(result);
+    });
+    app.post("/add_user_picture", async (req, res) => {
+      const info = req.body;
+      const filter = { email: info.email };
+      const exist = await usersCollection.findOne(filter);
+      if (exist) {
+        return res.send({ message: "The user is already exist in database" });
+      }
+      const result = await userPictures.insertOne(info);
+      res.send(result);
+    });
+    app.patch("/make_admin/:id", async (req, res) => {
+      const mode = req.query.mode;
+      const id = req.params.id;
+      const info = req.body;
+      const filter = { _id: new ObjectId(id) };
+      if (mode === "admin") {
+        const update = {
+          $set: {
+            admin: info.admin,
+          },
+        };
+        const result = await usersCollection.updateOne(filter, update);
+        res.send(result);
+      } else {
+        const update = {
+          $set: {
+            block: info.block,
+          },
+        };
+        const result = await usersCollection.updateOne(filter, update);
+        res.send(result);
+      }
+    });
+    // store user data related api
+    app.get("/all_users", async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+    app.post("/user", async (req, res) => {
+      const info = req.body;
+      const filter = { email: info.email };
+      const filter2 = { name: info.name };
+      const exits = await usersCollection.findOne(filter);
+      const exits2 = await usersCollection.findOne(filter2);
+      if (exits) {
+        return res.send({
+          message: "The email is already use !",
+          isEmail: true,
+        });
+      } else if (exits2) {
+        return res.send({
+          message: "The username is already use !",
+          isName: true,
+        });
+      }
+      const result = await usersCollection.insertOne(info);
+      res.send(result);
+    });
     // all pets
     app.get("/pets", async (req, res) => {
       const result = await petsCollection.find().toArray();
@@ -163,6 +246,12 @@ const run = async () => {
       res.send(result);
     });
     // user pet adopt me related api
+    app.get("/adoption_pets", async (req, res) => {
+      const email = req.query.email;
+      const filter = { userEmail: email };
+      const result = await adoptedCollection.find(filter).toArray();
+      res.send(result);
+    });
     app.post("/pet_adopt_me", async (req, res) => {
       const info = req.body;
       const filter = { petId: info.petId };
@@ -172,6 +261,18 @@ const run = async () => {
       }
       const result = await adoptedCollection.insertOne(info);
       res.send(result);
+    });
+    app.patch("/adoption_status/:id", async (req, res) => {
+      const info = req.body;
+      console.log(typeof info.adoption);
+      const filter = { _id: new ObjectId(req.params?.id) };
+      const update = {
+        $set: {
+          adoption: info.adoption,
+        },
+      };
+      const result = await adoptedCollection.updateOne(filter, update);
+      res.send({ result, info });
     });
     // user campaign realted api
     app.get("/donation_campaign", async (req, res) => {
