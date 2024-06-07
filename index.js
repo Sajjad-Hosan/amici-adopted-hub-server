@@ -111,6 +111,11 @@ const run = async () => {
       });
     });
     // ---------------------------------------------------------------------------------
+    // count api related
+    app.get("/pets_count", async (req, res) => {
+      const result = await petsCollection.estimatedDocumentCount();
+      res.send({ count: result });
+    });
     // isAdmin related api
     app.get("/user_status", async (req, res) => {
       const email = req.query.email;
@@ -183,10 +188,22 @@ const run = async () => {
       res.send(result);
     });
     // all pets
-    app.get("/pets", async (req, res) => {
-      const result = await petsCollection.find().toArray();
-      const filter = result.filter((i) => i.adopted !== true);
-      res.send(filter);
+    app.post("/pets", async (req, res) => {
+      const page = parseInt(req.query.page);
+      const result = await petsCollection
+        .find()
+        .skip(page * 10)
+        .limit(10)
+        .toArray();
+      // const filter = result.filter((i) => i.adopted !== true);
+      res.send(result);
+    });
+    app.get("/pets_category", async (req, res) => {
+      const category = req.query?.category;
+      const capiCate = category?.charAt(0).toUpperCase() + category?.slice(1);
+      const filter = { category: capiCate };
+      const result = await petsCollection.find(filter).toArray();
+      res.send(result);
     });
     // pet add by user api
     app.get("/user_pets", async (req, res) => {
