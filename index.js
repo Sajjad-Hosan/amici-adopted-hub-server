@@ -190,6 +190,7 @@ const run = async () => {
     // all pets
     app.post("/pets", async (req, res) => {
       const page = parseInt(req.query.page);
+      console.log(page * 10)
       const result = await petsCollection
         .find()
         .skip(page * 10)
