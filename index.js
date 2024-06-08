@@ -66,7 +66,7 @@ const run = async () => {
     const donationCollection = client.db("petsHub").collection("donations");
     const campaignCollection = client.db("petsHub").collection("campaign");
     const adoptedCollection = client.db("petsHub").collection("adopts");
-    const reviewCollection = client.db("petsHub").collection("reviews");
+    const storeCollection = client.db("petsHub").collection("stores");
 
     // user block realted api
     app.get("/user_check", async (req, res) => {
@@ -190,9 +190,13 @@ const run = async () => {
     // all pets
     app.post("/pets", async (req, res) => {
       const page = parseInt(req.query.page);
+      const sortType = req.query.sort;
+      const sort = {};
+      sort[sortType] = 1;
       const mode = req.query.mode;
       const result = await petsCollection
         .find()
+        .sort(sort)
         .skip(page * 10)
         .limit(10)
         .toArray();
@@ -302,12 +306,16 @@ const run = async () => {
     });
     app.post("/donation_campaign", async (req, res) => {
       const mode = req.query.mode;
+      const sortType = req.query.sort;
+      const sort = {};
+      sort[sortType] = 1;
       const page = parseInt(req.query.page);
       const email = req.query.email;
       const filter = { userEmail: email };
       if (mode === "admin") {
         const result = await campaignCollection
           .find()
+          .sort(sort)
           .skip(page * 10)
           .limit(10)
           .toArray();
@@ -371,10 +379,19 @@ const run = async () => {
       res.send(result);
     });
     // who has donated related api
-    app.get("/donations", async (req, res) => {
+    app.get("/donations_count", async (req, res) => {
+      const result = await donationCollection.estimatedDocumentCount();
+      res.send({ count: result });
+    });
+    app.post("/donations", async (req, res) => {
+      const page = parseInt(req.query?.page);
       const email = req.query?.email;
       const filter = { email: email };
-      const result = await donationCollection.find(filter).toArray();
+      const result = await donationCollection
+        .find(filter)
+        .skip(page * 10)
+        .limit(10)
+        .toArray();
       res.send(result);
     });
     app.get("/donations", async (req, res) => {
@@ -425,6 +442,16 @@ const run = async () => {
         },
       };
       const result = await campaignCollection.updateOne(filter, update);
+      res.send(result);
+    });
+    // success store related api
+  app.get("/success_stores", async (req, res) => {
+      const result = await storeCollection.find().toArray();
+      res.send(result);
+    });
+    app.post("/success_store", async (req, res) => {
+      const info = req.body;
+      const result = await storeCollection.insertOne(info);
       res.send(result);
     });
   } finally {
