@@ -13,7 +13,7 @@ const uri = `mongodb+srv://${process.env.MON_US}:${process.env.MON_PS}@amiciadop
 app.use(
   cors({
     origin: [
-      // "http://localhost:5173",
+      "http://localhost:5173",
       "amiciadopthub.web.app",
       "amiciadopthub.firebaseapp.com",
     ],
@@ -201,7 +201,7 @@ const run = async () => {
       res.send(result);
     });
     // all pets
-    app.post("/pets", verifyToken, async (req, res) => {
+    app.post("/pets", async (req, res) => {
       const page = parseInt(req.query.page);
       const sortType = req.query.sort;
       const sort = {};
