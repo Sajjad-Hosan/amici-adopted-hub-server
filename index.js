@@ -12,7 +12,11 @@ const uri = `mongodb+srv://${process.env.MON_US}:${process.env.MON_PS}@amiciadop
 // middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: [
+      // "http://localhost:5173",
+      "amiciadopthub.web.app",
+      "amiciadopthub.firebaseapp.com",
+    ],
     credentials: true,
   })
 );
