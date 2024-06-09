@@ -10,13 +10,14 @@ const port = process.env.PORT || 1000;
 const uri = `mongodb+srv://${process.env.MON_US}:${process.env.MON_PS}@amiciadopthub.nozb2mu.mongodb.net/?retryWrites=true&w=majority&appName=amiciAdoptHub`;
 
 // middleware
-app.use(cors());
-// app.use({
-//   origin: [],
-//   credentials: true,
-// });
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
-// app.use(cookieParser());
+app.use(cookieParser());
 
 // new mongo client create
 const client = new MongoClient(uri, {
@@ -26,40 +27,43 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+//
 
-// const verifyToken = (req, res, next) => {
-//   const token = req.cookies?.token;
-//   if (!token) {
-//     return res
-//       .status(401)
-//       .send({ message: "unAuthorize access", token: "error" });
-//   }
-//   jwt.verify(token, process.env.SECRET_TOK, (error, decoded) => {
-//     if (error) {
-//       return res.status(401).send({ message: "unAuthorized access" });
-//     }
-//     req.user = decoded;
-//     next();
-//   });
-// };
-// const verifyAdmin = async (req, res, next) => {
-//   const email = req.decoded?.email;
-//   const filter = { email: email };
-//   const result = await usersCollection.findOne(filter);
-//   const isAdmin = result?.role === "admin";
-//   if (!isAdmin) {
-//     res.status(403).send({ message: "forbidden error", verify: false });
-//   }
-//   next();
-// };
-// const cookieOptions = {
-//   httpOnly: true,
-//   secure: process.env.EXP_ENV === "production" ? true : false,
-//   sameSite: process.env.EXP_ENV === "production" ? "none" : "strict",
-// };
+const verifyAdmin = async (req, res, next) => {
+  const email = req.decoded?.email;
+  const filter = { email: email };
+  const result = await usersCollection.findOne(filter);
+  const isAdmin = result?.role === "admin";
+  if (!isAdmin) {
+    res.status(403).send({ message: "forbidden error", verify: false });
+  }
+  next();
+};
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.EXP_ENV === "production" ? true : false,
+  sameSite: process.env.EXP_ENV === "production" ? "none" : "strict",
+};
 
 const run = async () => {
   try {
+    const verifyToken = (req, res, next) => {
+      const token = req.cookies?.token;
+      if (!token) {
+        return res
+          .status(401)
+          .send({ message: "unAuthorize access", token: "error" });
+      }
+      jwt.verify(token, process.env.SECRET_TOK, (error, decoded) => {
+        if (error) {
+          return res.status(401).send({ message: "unAuthorized access" });
+        }
+        req.user = decoded;
+        next();
+      });
+    };
+    //
+
     const userPictures = client.db("petsHub").collection("pictures");
     const usersCollection = client.db("petsHub").collection("users");
     const petsCollection = client.db("petsHub").collection("pets");
@@ -79,6 +83,7 @@ const run = async () => {
         return res.send({ block: false, message: "not block" });
       }
     });
+
     // jwt related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -96,7 +101,7 @@ const run = async () => {
         .send({ message: "logout by server", success: true });
     });
     // stripe related api
-    app.post("/payment_intent", async (req, res) => {
+    app.post("/payment_intent", verifyToken, async (req, res) => {
       const { amount } = req.body;
       const total = amount * 100;
 
@@ -117,12 +122,11 @@ const run = async () => {
       res.send({ count: result });
     });
     // isAdmin related api
-    app.get("/user_status", async (req, res) => {
+    app.get("/user_status", verifyToken, async (req, res) => {
       const email = req.query.email;
       const filter = { email: email };
       const result = await usersCollection.findOne(filter);
       res.send({ isAdmin: result?.admin });
-      // console.log(result?.admin);
     });
     // user images related api
     app.get("/user_images", async (req, res) => {
@@ -139,7 +143,7 @@ const run = async () => {
       const result = await userPictures.insertOne(info);
       res.send(result);
     });
-    app.patch("/make_admin/:id", async (req, res) => {
+    app.patch("/make_admin/:id", verifyToken, async (req, res) => {
       const mode = req.query.mode;
       const id = req.params.id;
       const info = req.body;
@@ -163,7 +167,7 @@ const run = async () => {
       }
     });
     // store user data related api
-    app.get("/all_users", async (req, res) => {
+    app.get("/all_users", verifyToken, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
@@ -187,8 +191,13 @@ const run = async () => {
       const result = await usersCollection.insertOne(info);
       res.send(result);
     });
+    app.delete("/user_delete", async (req, res) => {
+      const filter = { _id: new ObjectId(req.params?.id) };
+      const result = await usersCollection.deleteOne(filter);
+      res.send(result);
+    });
     // all pets
-    app.post("/pets", async (req, res) => {
+    app.post("/pets", verifyToken, async (req, res) => {
       const page = parseInt(req.query.page);
       const sortType = req.query.sort;
       const sort = {};
@@ -214,7 +223,7 @@ const run = async () => {
       res.send(result);
     });
     // pet add by user api
-    app.get("/user_pets", async (req, res) => {
+    app.get("/user_pets", verifyToken, async (req, res) => {
       const email = req.query.email;
       const filter = { personEmail: email };
       const result = await petsCollection.find(filter).toArray();
@@ -271,7 +280,7 @@ const run = async () => {
       res.send(result);
     });
     // user pet adopt me related api
-    app.get("/adoption_pets", async (req, res) => {
+    app.get("/adoption_pets", verifyToken, async (req, res) => {
       const email = req.query.email;
       const filter = { userEmail: email };
       const result = await adoptedCollection.find(filter).toArray();
@@ -304,7 +313,7 @@ const run = async () => {
       const result = await campaignCollection.estimatedDocumentCount();
       res.send({ count: result });
     });
-    app.post("/donation_campaign", async (req, res) => {
+    app.post("/donation_campaign", verifyToken, async (req, res) => {
       const mode = req.query.mode;
       const sortType = req.query.sort;
       const sort = {};
@@ -328,7 +337,7 @@ const run = async () => {
         .toArray();
       res.send(result);
     });
-    app.get("/donation_info/:id", async (req, res) => {
+    app.get("/donation_info/:id", verifyToken, async (req, res) => {
       const filter = { _id: new ObjectId(req.params.id) };
       const result = await campaignCollection.findOne(filter);
       res.send(result);
@@ -343,7 +352,7 @@ const run = async () => {
       const result = await campaignCollection.insertOne(campaign);
       res.send(result);
     });
-    app.patch("/donation_update/:id", async (req, res) => {
+    app.patch("/donation_update/:id", verifyToken, async (req, res) => {
       const filter = { _id: new ObjectId(req.params.id) };
       const i = req.body;
       const update = {
@@ -383,7 +392,7 @@ const run = async () => {
       const result = await donationCollection.estimatedDocumentCount();
       res.send({ count: result });
     });
-    app.post("/donations", async (req, res) => {
+    app.post("/donations", verifyToken, async (req, res) => {
       const page = parseInt(req.query?.page);
       const email = req.query?.email;
       const filter = { email: email };
@@ -394,13 +403,13 @@ const run = async () => {
         .toArray();
       res.send(result);
     });
-    app.get("/donations", async (req, res) => {
+    app.get("/donations", verifyToken, async (req, res) => {
       const name = req.query.name;
       const filter = { petName: name };
       const result = await donationCollection.find(filter).toArray();
       res.send(result);
     });
-    app.post("/donation", async (req, res) => {
+    app.post("/donation", verifyToken, async (req, res) => {
       const donation = req.body;
       const filter = { petName: donation.petName };
       const exist = await donationCollection.findOne(filter);
@@ -416,7 +425,7 @@ const run = async () => {
       const result = await donationCollection.insertOne(donation);
       res.send(result);
     });
-    app.patch("/donation_amount/:id", async (req, res) => {
+    app.patch("/donation_amount/:id", verifyToken, async (req, res) => {
       const status = req.query.status;
       const info = req.body;
       const price = parseFloat(info?.currentAmount);
@@ -445,7 +454,7 @@ const run = async () => {
       res.send(result);
     });
     // success store related api
-  app.get("/success_stores", async (req, res) => {
+    app.get("/success_stores", async (req, res) => {
       const result = await storeCollection.find().toArray();
       res.send(result);
     });
