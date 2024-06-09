@@ -191,7 +191,7 @@ const run = async () => {
       const result = await usersCollection.insertOne(info);
       res.send(result);
     });
-    app.delete("/user_delete", async (req, res) => {
+    app.delete("/user_delete/:id", async (req, res) => {
       const filter = { _id: new ObjectId(req.params?.id) };
       const result = await usersCollection.deleteOne(filter);
       res.send(result);
@@ -313,7 +313,7 @@ const run = async () => {
       const result = await campaignCollection.estimatedDocumentCount();
       res.send({ count: result });
     });
-    app.post("/donation_campaign", verifyToken, async (req, res) => {
+    app.post("/donation_campaign", async (req, res) => {
       const mode = req.query.mode;
       const sortType = req.query.sort;
       const sort = {};
@@ -336,6 +336,22 @@ const run = async () => {
         .limit(10)
         .toArray();
       res.send(result);
+    });
+    // for donation page or show random donations
+    app.post("/donations", async (req, res) => {
+      const sortType = req.query.sort;
+      const sort = {};
+      sort[sortType] = 1;
+      const page = parseInt(req.query.page);
+      const email = req.query.email;
+      const filter = { userEmail: email };
+      const result = await campaignCollection
+        .find()
+        .sort(sort)
+        .skip(page * 10)
+        .limit(10)
+        .toArray();
+      return res.send(result);
     });
     app.get("/donation_info/:id", verifyToken, async (req, res) => {
       const filter = { _id: new ObjectId(req.params.id) };
