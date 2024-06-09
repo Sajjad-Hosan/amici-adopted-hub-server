@@ -14,8 +14,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "amiciadopthub.web.app",
-      "amiciadopthub.firebaseapp.com",
+      "https://amiciadopthub.web.app",
+      "https://amiciadopthub.firebaseapp.com",
     ],
     credentials: true,
   })
