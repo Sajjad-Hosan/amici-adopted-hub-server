@@ -347,8 +347,6 @@ const run = async () => {
       const sort = {};
       sort[sortType] = 1;
       const page = parseInt(req.query.page);
-      const email = req.query.email;
-      const filter = { userEmail: email };
       const result = await campaignCollection
         .find()
         .sort(sort)
@@ -357,6 +355,23 @@ const run = async () => {
         .toArray();
       return res.send(result);
     });
+  // admin donations api 
+  app.post("/donations_user", async (req, res) => {
+    const sortType = req.query.sort;
+    const sort = {};
+    sort[sortType] = 1;
+    const page = parseInt(req.query.page);
+    const email = req.query.email;
+    const filter = { userEmail: email };
+    const result = await campaignCollection
+      .find(filter)
+      .sort(sort)
+      .skip(page * 10)
+      .limit(10)
+      .toArray();
+    return res.send(result);
+  });
+  // ----------------------------------
     app.get("/donation_info/:id", verifyToken, async (req, res) => {
       const filter = { _id: new ObjectId(req.params.id) };
       const result = await campaignCollection.findOne(filter);
